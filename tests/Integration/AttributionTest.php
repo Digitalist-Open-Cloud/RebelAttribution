@@ -86,6 +86,31 @@ class AttributionTest extends IntegrationTestCase
         ], $this->rows('getChannels', ['nb_touched', 'nb_introduced', 'nb_assisted', 'nb_closed', 'nb_only']));
     }
 
+    public function testAChannelHasItsNamesUnderIt(): void
+    {
+        $channels = Request::processRequest('RebelAttribution.getChannels', [
+            'idSite' => 1, 'period' => 'day', 'date' => SiteWithJourneys::DAY, 'idGoal' => 1, 'model' => 'first',
+        ], []);
+        $idSubtable = $channels->getRowFromLabel('Search Engines')->getIdSubDataTable();
+
+        $this->assertEquals(
+            ['Google' => [3.0, 2, 4, 1, 1, 0, 2]],
+            $this->rows('getChannels', ['nb_conversions', 'nb_conversions_last', 'nb_touched', 'nb_introduced', 'nb_assisted', 'nb_closed', 'nb_only'], ['model' => 'first', 'idSubtable' => $idSubtable])
+        );
+        $this->assertNull($channels->getRowFromLabel('Direct Entry')->getIdSubDataTable());
+    }
+
+    public function testCloserCountsMoreGoesByTheDaysBeforeTheConversion(): void
+    {
+        // Search engines: two conversions alone, a visit two days before one, and one two days
+        // before another that a visit five days before it shares.
+        $this->assertEqualsWithDelta(
+            ['Search Engines' => [2.79], 'Direct Entry' => [0.96], 'Social Networks' => [0.25]],
+            $this->rows('getChannels', ['nb_conversions'], ['model' => 'decay']),
+            0.006
+        );
+    }
+
     public function testAnUnknownModelIsRefused(): void
     {
         $this->expectException(\Exception::class);
@@ -104,6 +129,14 @@ class AttributionTest extends IntegrationTestCase
             ['Less than a day' => [2], '1–3 days' => [1], '4–7 days' => [1], '8–14 days' => [0], '15–30 days' => [0]],
             $this->rows('getDaysToConversion', ['nb_conversions'])
         );
+    }
+
+    public function testThePagesCanTellWhenTheReportsWereArchived(): void
+    {
+        $parameters = ['idSite' => 1, 'period' => 'day', 'date' => SiteWithJourneys::DAY, 'idGoal' => 1];
+
+        $this->assertStringStartsWith('Report generated ', Request::processRequest('RebelAttribution.getReportGenerated', $parameters, []));
+        $this->assertSame('', Request::processRequest('RebelAttribution.getReportGenerated', ['date' => '2023-01-01'] + $parameters, []));
     }
 
     public function testASegmentPicksTheConversionsByTheVisitTheyHappenedIn(): void
@@ -133,7 +166,7 @@ class AttributionTest extends IntegrationTestCase
 
     public function getApiMethods(): array
     {
-        return [['getJourneys'], ['getChannels'], ['getVisitsToConversion'], ['getDaysToConversion']];
+        return [['getJourneys'], ['getChannels'], ['getVisitsToConversion'], ['getDaysToConversion'], ['getReportGenerated']];
     }
 
     public function testThePagesListTheGoalsOfTheWebsite(): void

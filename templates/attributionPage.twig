@@ -9,7 +9,7 @@
     </label>
 
     {% if page == 'RebelAttribution_Channels' %}
-    <p class="rebelAttributionHelp">{{ 'RebelAttribution_ChannelsHelp'|translate(days) }}</p>
+    <p class="rebelAttributionHelp">{{ 'RebelAttribution_ChannelsHelp'|translate(days) }} {{ 'RebelAttribution_ChannelsClickHelp'|translate }}</p>
     <div class="rebelAttributionModels" role="group" aria-label="{{ 'RebelAttribution_Model'|translate }}">
         {% for model, info in models %}
         <button type="button" class="rebelAttributionModel" data-model="{{ model }}" data-help="{{ info.help }}" aria-pressed="{{ loop.first ? 'true' : 'false' }}">{{ info.name }}</button>
@@ -45,5 +45,6 @@
         </div>
     </div>
     {% endif %}
+    <p class="rebelAttributionGenerated"></p>
     {% endif %}
 </div>

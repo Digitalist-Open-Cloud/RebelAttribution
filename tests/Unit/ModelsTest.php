@@ -26,9 +26,9 @@ class ModelsTest extends TestCase
     /**
      * @dataProvider getShares
      */
-    public function testAModelSharesAConversionBetweenTheVisits(string $model, array $journey, array $expected): void
+    public function testAModelSharesAConversionBetweenTheVisits(string $model, array $journey, array $expected, array $daysBefore = []): void
     {
-        $shares = Models::share($model, $journey);
+        $shares = Models::share($model, $journey, $daysBefore ?: array_fill(0, count($journey), 0));
 
         $this->assertEqualsWithDelta($expected, $shares, 0.0001);
         $this->assertEqualsWithDelta(1, array_sum($shares), 0.0001);
@@ -44,7 +44,8 @@ class ModelsTest extends TestCase
             'linear' => [Models::LINEAR, $four, [0.25, 0.25, 0.25, 0.25]],
             'position' => [Models::POSITION, $four, [0.4, 0.1, 0.1, 0.4]],
             'position, two visits' => [Models::POSITION, [self::SOCIAL, self::DIRECT], [0.5, 0.5]],
-            'decay' => [Models::DECAY, [self::SOCIAL, self::SEARCH, self::DIRECT], [1 / 7, 2 / 7, 4 / 7]],
+            'decay' => [Models::DECAY, [self::SOCIAL, self::SEARCH, self::DIRECT], [1 / 7, 2 / 7, 4 / 7], [14, 7, 0]],
+            'decay, on one day' => [Models::DECAY, [self::SOCIAL, self::DIRECT], [0.5, 0.5], [0.2, 0.2]],
             'last not direct' => [Models::LAST_NOT_DIRECT, [self::SOCIAL, self::SEARCH, self::DIRECT, self::DIRECT], [0, 1, 0, 0]],
             'last not direct, only direct' => [Models::LAST_NOT_DIRECT, [self::DIRECT, self::DIRECT], [0, 1]],
             'one visit' => [Models::POSITION, [self::SEARCH], [1]],

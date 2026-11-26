@@ -32,11 +32,23 @@ class Models
         self::LAST_NOT_DIRECT => 'RebelAttribution_ModelLastNotDirect',
     ];
 
+    // With "decay" a visit counts half as much for every this many days it came before the conversion.
+    public const HALF_LIFE_DAYS = 7;
+
+    /**
+     * @return string[] every model, the one of Matomo first
+     */
+    public static function getAll(): array
+    {
+        return array_merge([self::LAST], array_keys(self::NAMES));
+    }
+
     /**
      * @param int[] $journey the channel of each visit, the oldest first
+     * @param float[] $daysBefore how many days before the conversion each visit started
      * @return float[] the share of the conversion each visit gets, in the same order
      */
-    public static function share(string $model, array $journey): array
+    public static function share(string $model, array $journey, array $daysBefore): array
     {
         $count = count($journey);
         $last = $count - 1;
@@ -54,9 +66,8 @@ class Models
                 $shares[0] = $shares[$last] = 0.4;
                 return $shares;
             case self::DECAY:
-                // ponytail: halves for each visit back. Halve by days if journeys get the days between visits.
-                $weights = array_map(fn (int $index) => 2 ** $index, array_keys($journey));
-                return array_map(fn (int $weight) => $weight / array_sum($weights), $weights);
+                $weights = array_map(fn ($days) => 0.5 ** ($days / self::HALF_LIFE_DAYS), $daysBefore);
+                return array_map(fn (float $weight) => $weight / array_sum($weights), $weights);
             case self::LAST_NOT_DIRECT:
                 for ($index = $last; $index >= 0; $index--) {
                     if ($journey[$index] !== Common::REFERRER_TYPE_DIRECT_ENTRY) {

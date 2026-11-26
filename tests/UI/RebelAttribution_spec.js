@@ -52,6 +52,10 @@ describe('RebelAttribution', function () {
         ]);
     });
 
+    it('should tell when the report was generated', async function () {
+        expect(await page.evaluate(() => document.querySelector('.rebelAttributionGenerated').textContent)).to.match(/^Report generated .+ ago$/);
+    });
+
     it('should count again when another model is picked', async function () {
         await page.click('.rebelAttributionModel[data-model="first"]');
         await page.waitForNetworkIdle();
@@ -63,6 +67,21 @@ describe('RebelAttribution', function () {
             'Social Networks 0 conversions 1 conversion · $10 +',
             'Direct Entry 2 conversions · $20 0 conversions −100%',
         ]);
+    });
+
+    it('should open a channel to show its names, and keep it open when another model is picked', async function () {
+        await page.evaluate(() => [...document.querySelectorAll('.rebelAttributionHasNames')]
+            .find((line) => line.textContent.includes('Social Networks')).click());
+        await page.waitForSelector('.rebelAttributionName');
+
+        expect(await rows('.rebelAttributionName')).to.deep.equal(['Facebook 0 conversions 1 conversion · $10 +']);
+
+        await page.click('.rebelAttributionModel[data-model="linear"]');
+        await page.waitForNetworkIdle();
+
+        expect(await rows('.rebelAttributionName')).to.deep.equal(['Facebook 0 conversions 0.3 conversions · $3.33 +']);
+        expect(await page.evaluate(() => [...document.querySelectorAll('.rebelAttributionHasNames strong')].map((name) => name.textContent)))
+            .to.have.members(['Search Engines', 'Social Networks']);
     });
 
     it('should draw the journeys to a conversion as chains of channels', async function () {
