@@ -7,7 +7,7 @@
 
 A Matomo plugin that shows which channels earn the conversions of a goal. Matomo gives a
 conversion to the last visit before it. This plugin looks at every visit the visitor made in the
-30 days before converting, so a channel that brings visitors who convert later gets its share.
+days before converting, so a channel that brings visitors who convert later gets its share.
 
 ## Install
 
@@ -18,6 +18,13 @@ archives; to fill them for days that are archived already, run:
 ./console core:invalidate-report-data --dates=<from>,<to> --plugin=RebelAttribution
 ./console core:archive
 ```
+
+## Settings
+
+**Attribution: days of a journey**, in the settings of a website under Administration >
+Websites > Manage, is how many days before a conversion the visits of a visitor count: 7, 14, 30,
+60 or 90. It is 30 until you change it. After a change the reports are built again the next time
+Matomo archives.
 
 ## The pages
 
@@ -54,7 +61,7 @@ took and how many days passed from the first visit of the journey.
 
 - A channel is a channel type of Matomo: direct entry, search engines, websites, campaigns,
   social networks and AI assistants.
-- A journey is the visits of the visitor that started in the 30 days before the conversion, the
+- A journey is the visits of the visitor that started in the days before the conversion, the
   visit of the conversion included. It keeps the latest ten visits.
 - A visitor is who Matomo recognises as one: by the visitor ID, or the user ID when one is set.
   A visitor who changes device or clears cookies starts a new journey.

@@ -14,6 +14,7 @@ use Piwik\ArchiveProcessor\Record;
 use Piwik\ArchiveProcessor\RecordBuilder;
 use Piwik\Common;
 use Piwik\DataTable;
+use Piwik\Plugins\RebelAttribution\MeasurableSettings;
 use Piwik\Plugins\RebelAttribution\Models;
 use Piwik\Site;
 use Piwik\Tracker\GoalManager;
@@ -28,9 +29,6 @@ use Piwik\Tracker\GoalManager;
  */
 class Journeys extends RecordBuilder
 {
-    // The visits of a visitor this many days before a conversion are its journey.
-    public const DAYS = 30;
-
     // ponytail: a journey keeps its latest visits. A visitor with more loses the oldest, and with
     // them the visit that came first.
     public const MAX_VISITS = 10;
@@ -42,7 +40,7 @@ class Journeys extends RecordBuilder
     public const VISITS = 'visits';
     public const DAYS_TAKEN = 'days';
     public const VISIT_GROUPS = [1, 2, 3, 4];
-    public const DAY_GROUPS = [0, 1, 4, 8, 15];
+    public const DAY_GROUPS = [0, 1, 4, 8, 15, 31, 61];
 
     public const ROLES = ['nb_introduced', 'nb_assisted', 'nb_closed', 'nb_only'];
 
@@ -129,7 +127,7 @@ class Journeys extends RecordBuilder
                FROM (' . $conversions['sql'] . ') AS c
                JOIN ' . Common::prefixTable('log_visit') . ' AS v
                  ON v.idsite = ? AND v.idvisitor = c.idvisitor
-                    AND v.visit_last_action_time >= DATE_SUB(c.server_time, INTERVAL ' . self::DAYS . ' DAY)
+                    AND v.visit_last_action_time >= DATE_SUB(c.server_time, INTERVAL ' . MeasurableSettings::getDays($idSite) . ' DAY)
                     AND v.visit_first_action_time <= c.server_time
               ORDER BY c.idvisit, c.idgoal, c.buster, v.visit_first_action_time, v.idvisit',
             array_merge($conversions['bind'], [$idSite])

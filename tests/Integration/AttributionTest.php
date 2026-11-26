@@ -11,7 +11,9 @@ namespace Piwik\Plugins\RebelAttribution\tests\Integration;
 
 use Piwik\API\Request;
 use Piwik\NoAccessException;
+use Piwik\CronArchive\ReArchiveList;
 use Piwik\Plugins\RebelAttribution\API;
+use Piwik\Plugins\RebelAttribution\MeasurableSettings;
 use Piwik\Plugins\RebelAttribution\tests\Fixtures\SiteWithJourneys;
 use Piwik\Plugins\RebelAttribution\Widgets\GetChannels;
 use Piwik\Plugins\RebelAttribution\Widgets\GetJourneys;
@@ -51,6 +53,41 @@ class AttributionTest extends IntegrationTestCase
         SiteWithJourneys::journey(6, ['2024-02-01' => SiteWithJourneys::WEBSITE, SiteWithJourneys::DAY => SiteWithJourneys::DIRECT]);
 
         $this->assertSame([1], $this->rows('getJourneys', ['nb_conversions'])['Direct Entry']);
+    }
+
+    public function testTheDaysOfAJourneyAreASettingOfTheWebsite(): void
+    {
+        $settings = new MeasurableSettings(1);
+        $settings->days->setValue(7);
+        $settings->save();
+        SiteWithJourneys::journey(7, ['2024-02-28' => SiteWithJourneys::WEBSITE, SiteWithJourneys::DAY => SiteWithJourneys::DIRECT]);
+
+        $this->assertSame([1], $this->rows('getJourneys', ['nb_conversions'])['Direct Entry']);
+        $this->assertSame(
+            ['Less than a day', '1–3 days', '4–7 days'],
+            array_keys($this->rows('getDaysToConversion', ['nb_conversions']))
+        );
+    }
+
+    public function testChangingTheDaysOfAJourneyBuildsTheReportsAgain(): void
+    {
+        $settings = new MeasurableSettings(1);
+        $settings->days->setValue(MeasurableSettings::DEFAULT_DAYS);
+        $settings->save();
+        $this->assertSame([], (new ReArchiveList())->getAll());
+
+        $settings->days->setValue(60);
+        $settings->save();
+
+        $this->assertStringContainsString('RebelAttribution', implode('', (new ReArchiveList())->getAll()));
+    }
+
+    public function testTheDaysOfAJourneyHaveToBeOneOfTheChoices(): void
+    {
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('must be one of');
+
+        (new MeasurableSettings(1))->days->setValue(45);
     }
 
     public function testAVisitAfterTheConversionIsNotPartOfTheJourney(): void

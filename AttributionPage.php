@@ -13,7 +13,6 @@ use Piwik\API\Request as ApiRequest;
 use Piwik\Common;
 use Piwik\Piwik;
 use Piwik\Plugins\RebelAttribution\Categories\AttributionCategory;
-use Piwik\Plugins\RebelAttribution\RecordBuilders\Journeys;
 use Piwik\Request;
 use Piwik\Site;
 use Piwik\Tracker\GoalManager;
@@ -63,7 +62,7 @@ abstract class AttributionPage extends Widget
             'page' => static::PAGE,
             'goals' => $goals,
             'models' => $models,
-            'days' => Journeys::DAYS,
+            'days' => MeasurableSettings::getDays($idSite),
             'currency' => Site::getCurrencySymbolFor($idSite),
             'texts' => [
                 'noData' => Piwik::translate('CoreHome_ThereIsNoDataForThisReport'),

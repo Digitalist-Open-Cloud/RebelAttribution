@@ -138,7 +138,7 @@ class API extends \Piwik\Plugin\API
     /**
      * How many days passed from the first visit of a journey until the conversion of a goal.
      *
-     * @param int $idSite
+     * @param int|string $idSite one website, or several as for other reports
      * @param string $period
      * @param string $date
      * @param int $idGoal 0 for ecommerce orders
@@ -147,9 +147,15 @@ class API extends \Piwik\Plugin\API
      */
     public function getDaysToConversion($idSite, $period, $date, $idGoal, $segment = false)
     {
+        // The days of a journey are a setting of a website. Several websites at once get the default.
+        $max = is_numeric($idSite) ? MeasurableSettings::getDays((int) $idSite) : MeasurableSettings::DEFAULT_DAYS;
+
         $groups = [];
         foreach (Journeys::DAY_GROUPS as $index => $days) {
-            $to = (Journeys::DAY_GROUPS[$index + 1] ?? Journeys::DAYS + 1) - 1;
+            if ($days > $max) {
+                break;
+            }
+            $to = min($max, (Journeys::DAY_GROUPS[$index + 1] ?? $max + 1) - 1);
             $groups[$days] = $days === 0 ? Piwik::translate('RebelAttribution_LessThanADay') : Piwik::translate('RebelAttribution_DaysRange', [$days, $to]);
         }
 
