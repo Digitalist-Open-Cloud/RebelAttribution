@@ -71,6 +71,7 @@ abstract class AttributionPage extends Widget
                 'oneConversion' => Piwik::translate('RebelAttribution_OneConversion'),
                 'conversions' => Piwik::translate('RebelAttribution_NConversions'),
                 'notCredited' => Piwik::translate('RebelAttribution_NotCreditedToday'),
+                'showNames' => Piwik::translate('RebelAttribution_ShowNames'),
                 'times' => Piwik::translate('RebelAttribution_VisitsInARow'),
                 'roles' => [
                     'nb_introduced' => Piwik::translate('RebelAttribution_RoleIntroduced'),

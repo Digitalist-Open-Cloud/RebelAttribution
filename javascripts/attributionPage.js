@@ -10,6 +10,7 @@
     var ROLES = ['nb_introduced', 'nb_assisted', 'nb_closed', 'nb_only'];
     var ARROW = ' → ';
     var TOP_JOURNEYS = 10;
+    var TOP_NAMES = 10;
 
     function el(tag, className, text) {
         var element = document.createElement(tag);
@@ -57,7 +58,7 @@
         ajax.addParams(parameters, 'get');
         ajax.setFormat('json');
         ajax.setCallback(function (rows) {
-            if (state.asked === asked && Array.isArray(rows)) {
+            if (state.asked === asked && rows && rows.result !== 'error') {
                 callback(rows);
             }
         });
@@ -69,33 +70,79 @@
         box.appendChild(el('p', 'rebelAttributionHint', text));
     }
 
+    // A channel, or a name of one, with what it gets today and with the model.
+    function channelLine(root, row, max, className) {
+        var line = el('div', className);
+        line.appendChild(el('strong', 'rebelAttributionChannelName', row.label));
+
+        var bars = el('div', 'rebelAttributionBars');
+        [['rebelAttributionLast', row.nb_conversions_last, row.revenue_last], ['rebelAttributionPicked', row.nb_conversions, row.revenue]].forEach(function (one) {
+            var wrap = el('div', 'rebelAttributionBarRow');
+            wrap.appendChild(bar('rebelAttributionBar ' + one[0], one[1] / max));
+            wrap.appendChild(el('span', 'rebelAttributionBarText', amount(root, one[1], one[2])));
+            bars.appendChild(wrap);
+        });
+        line.appendChild(bars);
+
+        var change = row.nb_conversions_last ? Math.round(100 * (row.nb_conversions - row.nb_conversions_last) / row.nb_conversions_last) : null;
+        var changed = el('span', 'rebelAttributionChange', change === null ? '' : (change > 0 ? '+' : change < 0 ? '−' : '±') + Math.abs(change) + '%');
+        if (change === null) {
+            changed.title = root.rebelAttribution.texts.notCredited;
+            changed.textContent = '+';
+        }
+        changed.classList.add(change === 0 ? 'rebelAttributionSame' : change === null || change > 0 ? 'rebelAttributionUp' : 'rebelAttributionDown');
+        line.appendChild(changed);
+
+        return line;
+    }
+
     function drawCompare(root, rows) {
+        var state = root.rebelAttribution;
         var box = root.querySelector('.rebelAttributionCompare');
         var max = Math.max.apply(null, rows.map(function (row) { return Math.max(row.nb_conversions, row.nb_conversions_last); }));
         box.textContent = '';
 
         rows.forEach(function (row) {
-            var line = el('div', 'rebelAttributionChannel');
-            line.appendChild(el('strong', 'rebelAttributionChannelName', row.label));
-
-            var bars = el('div', 'rebelAttributionBars');
-            [['rebelAttributionLast', row.nb_conversions_last, row.revenue_last], ['rebelAttributionPicked', row.nb_conversions, row.revenue]].forEach(function (one) {
-                var wrap = el('div', 'rebelAttributionBarRow');
-                wrap.appendChild(bar('rebelAttributionBar ' + one[0], one[1] / max));
-                wrap.appendChild(el('span', 'rebelAttributionBarText', amount(root, one[1], one[2])));
-                bars.appendChild(wrap);
-            });
-            line.appendChild(bars);
-
-            var change = row.nb_conversions_last ? Math.round(100 * (row.nb_conversions - row.nb_conversions_last) / row.nb_conversions_last) : null;
-            var changed = el('span', 'rebelAttributionChange', change === null ? '' : (change > 0 ? '+' : change < 0 ? '−' : '±') + Math.abs(change) + '%');
-            if (change === null) {
-                changed.title = root.rebelAttribution.texts.notCredited;
-                changed.textContent = '+';
-            }
-            changed.classList.add(change === 0 ? 'rebelAttributionSame' : change === null || change > 0 ? 'rebelAttributionUp' : 'rebelAttributionDown');
-            line.appendChild(changed);
+            var line = channelLine(root, row, max, 'rebelAttributionChannel');
             box.appendChild(line);
+            if (!row.idsubdatatable) {
+                return;
+            }
+
+            // A channel with names opens to show them. It stays open when another model is picked.
+            var names = el('div', 'rebelAttributionNames');
+            box.appendChild(names);
+            var show = function () {
+                var isOpen = !!state.open[row.label];
+                line.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                names.textContent = '';
+                if (!isOpen) {
+                    return;
+                }
+                var model = root.querySelector('.rebelAttributionModel[aria-pressed="true"]').getAttribute('data-model');
+                ask(root, 'getChannels', { model: model, idSubtable: row.idsubdatatable, filter_limit: TOP_NAMES }, function (nameRows) {
+                    names.textContent = '';
+                    nameRows.forEach(function (nameRow) {
+                        names.appendChild(channelLine(root, nameRow, max, 'rebelAttributionChannel rebelAttributionName'));
+                    });
+                });
+            };
+            var toggle = function () {
+                state.open[row.label] = !state.open[row.label];
+                show();
+            };
+            line.classList.add('rebelAttributionHasNames');
+            line.setAttribute('role', 'button');
+            line.setAttribute('tabindex', '0');
+            line.title = state.texts.showNames;
+            line.addEventListener('click', toggle);
+            line.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggle();
+                }
+            });
+            show();
         });
     }
 
@@ -214,6 +261,11 @@
     function load(root) {
         root.rebelAttribution.asked++;
 
+        root.querySelector('.rebelAttributionGenerated').textContent = '';
+        ask(root, 'getReportGenerated', {}, function (generated) {
+            root.querySelector('.rebelAttributionGenerated').textContent = generated.value || '';
+        });
+
         if (root.getAttribute('data-page') === 'RebelAttribution_Channels') {
             loadChannels(root);
             return;
@@ -230,7 +282,7 @@
         if (!select) {
             return;
         }
-        root.rebelAttribution = { texts: JSON.parse(root.getAttribute('data-texts')), asked: 0 };
+        root.rebelAttribution = { texts: JSON.parse(root.getAttribute('data-texts')), asked: 0, open: {} };
 
         // The goal that was picked on the other page is picked here too.
         try {

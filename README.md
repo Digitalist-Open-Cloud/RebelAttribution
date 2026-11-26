@@ -23,7 +23,7 @@ archives; to fill them for days that are archived already, run:
 
 **Attribution** in the reporting menu has two pages. Pick a goal at the top of either; a website
 with ecommerce also has its orders to pick. Revenue is shown next to conversions when the goal
-has any.
+has any. Under the report is when it was generated, as under the reports of Matomo.
 
 ### Channels
 
@@ -35,8 +35,11 @@ gets with the model you pick. The percentage is the difference between the two.
 | First and last count most | The first and the last visit get 40% each, the visits between them share 20% |
 | First visit | All to the first visit of the journey |
 | Shared equally | The same share to every visit |
-| Closer counts more | A visit counts half as much as the visit after it |
+| Closer counts more | A visit counts half as much for every 7 days it came before the conversion |
 | Last that was not direct | All to the last visit that was not a direct entry |
+
+Click a channel to see the same for what is in it: its campaigns, search engines, websites,
+social networks or AI assistants.
 
 Under the bars, **The role of each channel** shows for the conversions a channel took part in
 whether it was the first visit of the journey, one in the middle, the last, or the only one.
@@ -63,7 +66,7 @@ took and how many days passed from the first visit of the journey.
 `RebelAttribution.getChannels`, `getJourneys`, `getVisitsToConversion` and `getDaysToConversion`
 need view access to the website. They take `idSite`, `period`, `date`, `idGoal` (0 for ecommerce
 orders) and optionally `segment`. `getChannels` also takes `model`: `position`, `first`, `linear`,
-`decay` or `lastNotDirect`.
+`decay` or `lastNotDirect`. A channel has what is in it as its subtable.
 
 ## License
 

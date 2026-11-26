@@ -12,6 +12,8 @@ namespace Piwik\Plugins\RebelAttribution;
 use Piwik\Archive;
 use Piwik\DataTable;
 use Piwik\DataTable\DataTableInterface;
+use Piwik\Date;
+use Piwik\Metrics\Formatter;
 use Piwik\Piwik;
 use Piwik\Plugins\RebelAttribution\RecordBuilders\Journeys;
 
@@ -55,7 +57,9 @@ class API extends \Piwik\Plugin\API
 
     /**
      * The channels with the conversions and revenue a model gives them, next to what they get
-     * when the last visit gets it all, and how often they took each role in a journey.
+     * when the last visit gets it all, and how often they took each role in a journey. The
+     * subtable of a channel has the same for its names: the campaigns, search engines, websites
+     * and so on.
      *
      * @param int $idSite
      * @param string $period
@@ -63,60 +67,51 @@ class API extends \Piwik\Plugin\API
      * @param int $idGoal 0 for ecommerce orders
      * @param string $model first, linear, position, decay or lastNotDirect
      * @param string|bool $segment
+     * @param bool $expanded
+     * @param int|null $idSubtable
      * @return DataTableInterface
      */
-    public function getChannels($idSite, $period, $date, $idGoal, $model = Models::POSITION, $segment = false)
+    public function getChannels($idSite, $period, $date, $idGoal, $model = Models::POSITION, $segment = false, $expanded = false, $idSubtable = null)
     {
         if (!isset(Models::NAMES[$model])) {
             throw new \Exception(Piwik::translate('RebelAttribution_UnknownModel', implode(', ', array_keys(Models::NAMES))));
         }
 
-        $journeys = Archive::createDataTableFromArchive(Journeys::getJourneysRecord((int) $idGoal), $idSite, $period, $date, $segment);
-
-        return $this->rebuild($journeys, function (DataTable $table) use ($model): array {
-            $channels = [];
-            foreach ($table->getRows() as $row) {
-                $journey = self::toJourney($row);
-                $last = count($journey) - 1;
-                $conversions = (int) $row->getColumn('nb_conversions');
-                $revenue = (float) $row->getColumn('revenue');
-
-                $add = [];
-                foreach (Models::share($model, $journey) as $index => $share) {
-                    $add[$journey[$index]]['nb_conversions'] = ($add[$journey[$index]]['nb_conversions'] ?? 0) + $share * $conversions;
-                    $add[$journey[$index]]['revenue'] = ($add[$journey[$index]]['revenue'] ?? 0) + $share * $revenue;
-
-                    // A channel has a role once in a conversion, however many of its visits had it.
-                    $role = $last === 0 ? 'nb_only' : ($index === 0 ? 'nb_introduced' : ($index === $last ? 'nb_closed' : 'nb_assisted'));
-                    $add[$journey[$index]][$role] = $conversions;
-                    $add[$journey[$index]]['nb_touched'] = $conversions;
-                }
-                $add[$journey[$last]]['nb_conversions_last'] = $conversions;
-                $add[$journey[$last]]['revenue_last'] = $revenue;
-
-                foreach ($add as $channel => $columns) {
-                    $channels[$channel] ??= [
-                        'nb_conversions' => 0, 'revenue' => 0, 'nb_conversions_last' => 0, 'revenue_last' => 0,
-                        'nb_touched' => 0, 'nb_introduced' => 0, 'nb_assisted' => 0, 'nb_closed' => 0, 'nb_only' => 0,
-                    ];
-                    foreach ($columns as $column => $value) {
-                        $channels[$channel][$column] += $value;
-                    }
-                }
-            }
-
-            uasort($channels, fn (array $a, array $b) => $b['nb_conversions'] <=> $a['nb_conversions']);
-
-            $rows = [];
-            foreach ($channels as $channel => $columns) {
-                $columns['nb_conversions'] = round($columns['nb_conversions'], 2);
-                $columns['revenue'] = round($columns['revenue'], 2);
-                $columns['revenue_last'] = round($columns['revenue_last'], 2);
-                $rows[] = ['label' => self::getChannelName($channel)] + $columns;
-            }
-
-            return $rows;
+        $channels = Archive::createDataTableFromArchive(Journeys::getChannelsRecord((int) $idGoal), $idSite, $period, $date, $segment, $expanded, false, $idSubtable);
+        $isNames = !empty($idSubtable);
+        $channels->filter(function (DataTable $table) use ($model, $isNames) {
+            self::toModel($table, $model, !$isNames);
         });
+
+        return $channels;
+    }
+
+    /**
+     * Leaves the rows of the record of channels with what one model gives them.
+     */
+    private static function toModel(DataTable $table, string $model, bool $isChannels): void
+    {
+        foreach ($table->getRows() as $row) {
+            $label = $row->getColumn('label');
+            $columns = [
+                'label' => $isChannels && $label !== DataTable::LABEL_SUMMARY_ROW ? self::getChannelName((int) $label) : $label,
+                'nb_conversions' => round((float) $row->getColumn('nb_conversions_' . $model), 2),
+                'revenue' => round((float) $row->getColumn('revenue_' . $model), 2),
+                'nb_conversions_last' => (int) round((float) $row->getColumn('nb_conversions_' . Models::LAST)),
+                'revenue_last' => round((float) $row->getColumn('revenue_' . Models::LAST), 2),
+                'nb_touched' => (int) $row->getColumn('nb_conversions'),
+            ];
+            foreach (Journeys::ROLES as $role) {
+                $columns[$role] = (int) $row->getColumn($role);
+            }
+            $row->setColumns($columns);
+
+            if ($row->getSubtable()) {
+                self::toModel($row->getSubtable(), $model, false);
+            }
+        }
+
+        $table->filter('Sort', ['nb_conversions', 'desc']);
     }
 
     /**
@@ -159,6 +154,38 @@ class API extends \Piwik\Plugin\API
         }
 
         return $this->getTime(Journeys::DAYS_TAKEN, $groups, $idSite, $period, $date, $idGoal, $segment);
+    }
+
+    /**
+     * When the reports of a goal were last archived for the period, as a sentence for the pages.
+     *
+     * @param int $idSite
+     * @param string $period
+     * @param string $date
+     * @param int $idGoal 0 for ecommerce orders
+     * @param string|bool $segment
+     * @return string empty when nothing is archived
+     */
+    public function getReportGenerated($idSite, $period, $date, $idGoal, $segment = false)
+    {
+        $journeys = Archive::createDataTableFromArchive(Journeys::getJourneysRecord((int) $idGoal), $idSite, $period, $date, $segment);
+
+        $archived = [];
+        foreach ($journeys instanceof DataTable ? [$journeys] : $journeys->getDataTables() as $table) {
+            $archived[] = (string) $table->getMetadata(DataTable::ARCHIVED_DATE_METADATA_NAME);
+        }
+        $archived = array_filter($archived);
+        if (!$archived) {
+            return '';
+        }
+
+        // The same words as under the reports of Matomo.
+        $date = Date::factory(max($archived));
+        if ($date->getTimestamp() > Date::today()->getTimestamp()) {
+            return Piwik::translate('CoreHome_ReportGeneratedXAgo', (new Formatter())->getPrettyTimeFromSeconds(time() - $date->getTimestamp(), true));
+        }
+
+        return Piwik::translate('CoreHome_ReportGeneratedOn', $date->getLocalized(Date::DATE_FORMAT_SHORT)) . ' (UTC)';
     }
 
     /**
