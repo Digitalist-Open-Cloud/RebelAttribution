@@ -1,0 +1,49 @@
+<div class="rebelAttribution" data-page="{{ page }}" data-texts="{{ texts|json_encode }}" data-currency="{{ currency }}">
+    {% if goals is empty %}
+    <p class="rebelAttributionHint">{{ 'RebelAttribution_NoGoals'|translate }}</p>
+    {% else %}
+    <label class="rebelAttributionGoalLabel">{{ 'General_Goal'|translate }}
+        <select class="rebelAttributionGoal browser-default">
+            {% for id, name in goals %}<option value="{{ id }}">{{ name }}</option>{% endfor %}
+        </select>
+    </label>
+
+    {% if page == 'RebelAttribution_Channels' %}
+    <p class="rebelAttributionHelp">{{ 'RebelAttribution_ChannelsHelp'|translate(days) }}</p>
+    <div class="rebelAttributionModels" role="group" aria-label="{{ 'RebelAttribution_Model'|translate }}">
+        {% for model, info in models %}
+        <button type="button" class="rebelAttributionModel" data-model="{{ model }}" data-help="{{ info.help }}" aria-pressed="{{ loop.first ? 'true' : 'false' }}">{{ info.name }}</button>
+        {% endfor %}
+    </div>
+    <p class="rebelAttributionModelHelp"></p>
+    <div class="rebelAttributionLegend">
+        <span><i class="rebelAttributionLast"></i>{{ 'RebelAttribution_LegendLast'|translate }}</span>
+        <span><i class="rebelAttributionPicked"></i>{{ 'RebelAttribution_LegendModel'|translate }}</span>
+    </div>
+    <div class="rebelAttributionCompare"></div>
+
+    <h4 class="rebelAttributionTitle">{{ 'RebelAttribution_Roles'|translate }}</h4>
+    <p class="rebelAttributionHelp">{{ 'RebelAttribution_RolesHelp'|translate }}</p>
+    <div class="rebelAttributionLegend">
+        <span><i class="rebelAttribution_nb_introduced"></i>{{ 'RebelAttribution_LegendIntroduced'|translate }}</span>
+        <span><i class="rebelAttribution_nb_assisted"></i>{{ 'RebelAttribution_LegendAssisted'|translate }}</span>
+        <span><i class="rebelAttribution_nb_closed"></i>{{ 'RebelAttribution_LegendClosed'|translate }}</span>
+        <span><i class="rebelAttribution_nb_only"></i>{{ 'RebelAttribution_LegendOnly'|translate }}</span>
+    </div>
+    <div class="rebelAttributionRoles"></div>
+    {% else %}
+    <p class="rebelAttributionHelp">{{ 'RebelAttribution_JourneysHelp'|translate(days) }}</p>
+    <div class="rebelAttributionJourneys"></div>
+    <div class="rebelAttributionSplit">
+        <div>
+            <h4 class="rebelAttributionTitle">{{ 'RebelAttribution_VisitsToConversion'|translate }}</h4>
+            <div class="rebelAttributionVisits"></div>
+        </div>
+        <div>
+            <h4 class="rebelAttributionTitle">{{ 'RebelAttribution_DaysToConversion'|translate }}</h4>
+            <div class="rebelAttributionDays"></div>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>

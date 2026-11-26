@@ -1,0 +1,28 @@
+{
+    "name": "RebelAttribution",
+    "description": "See which channels earn your conversions: compare attribution models, the role each channel plays, and the journeys visitors take before they convert.",
+    "version": "5.0.0",
+    "theme": false,
+    "require": {
+        "matomo": ">=5.14.1-stable,<6.0.0-b1",
+        "php": ">=8.3.0"
+    },
+    "authors": [
+        {
+            "name": "Digitalist Open Cloud",
+            "email": "cloud@digitalist.com",
+            "homepage": "https:\/\/digitalist.cloud"
+        }
+    ],
+    "support": {
+        "issues": "https:\/\/github.com\/Digitalist-Open-Cloud\/RebelAttribution\/issues"
+    },
+    "homepage": "https:\/\/digitalist.cloud",
+    "license": "GPL v3+",
+    "keywords": [
+        "attribution",
+        "channels",
+        "conversions",
+        "marketing"
+    ]
+}
